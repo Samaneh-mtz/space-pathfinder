@@ -1479,7 +1479,7 @@
         // Handle mobile controls
         if (isMobile) {
             const mobileControls = document.getElementById('mobile-controls');
-            mobileControls.style.display = 'block';
+            mobileControls.style.display = 'flex';
             
             const buttons = {
                 'up-btn': { dy: -player.speed },
@@ -1500,15 +1500,12 @@
                 });
             });
 
-            // Add shooting to mobile controls
+            // Create and add shoot button
             const shootButton = document.createElement('button');
             shootButton.className = 'control-btn';
             shootButton.id = 'shoot-btn';
             shootButton.textContent = '⚡';
-            shootButton.style.right = '50%';
-            shootButton.style.bottom = '50%';
-            shootButton.style.transform = 'translate(50%, 50%)';
-            document.getElementById('mobile-controls').appendChild(shootButton);
+            mobileControls.appendChild(shootButton);
 
             shootButton.addEventListener('touchstart', (e) => {
                 e.preventDefault();
