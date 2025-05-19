@@ -3,8 +3,47 @@
 // Initialize canvas and context
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
-canvas.width = 800;
-canvas.height = 600;
+
+// Mobile detection
+const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+// Set initial canvas size
+function resizeCanvas() {
+    const container = document.getElementById('game-container');
+    const containerWidth = container.clientWidth;
+    const containerHeight = window.innerHeight * 0.6; // Reduced to 60% to make room for controls
+    
+    // Maintain aspect ratio
+    const aspectRatio = 4/3;
+    let width = containerWidth;
+    let height = width / aspectRatio;
+    
+    if (height > containerHeight) {
+        height = containerHeight;
+        width = height * aspectRatio;
+    }
+    
+    canvas.width = width;
+    canvas.height = height;
+    
+    // Scale player and planet sizes based on canvas size
+    player.radius = canvas.width * 0.04; // Slightly smaller on mobile
+    player.speed = canvas.width * 0.003; // Adjusted for better mobile control
+    
+    // Adjust planet positions for new canvas size
+    planets.forEach(planet => {
+        planet.initialX = canvas.width * 0.8;
+        planet.initialY = canvas.height * (0.2 + Math.random() * 0.6);
+    });
+}
+
+// Call resize on load and window resize
+window.addEventListener('load', () => {
+    resizeCanvas();
+    startLevel();
+    gameLoop();
+});
+window.addEventListener('resize', resizeCanvas);
 
 // Game state
 let gameState = {
@@ -19,7 +58,7 @@ let gameState = {
 // Player object
 const player = {
     x: 50,
-    y: canvas.height / 2,
+    y: 0, // Will be set in startLevel
     speed: 2,
     emoji: '🛸',
     radius: 40
@@ -27,10 +66,10 @@ const player = {
 
 // Planets array with movement and rotation properties
 const planets = [
-    { initialX: 200, initialY: 100, x: 700, y: 100, reached: false, emoji: '🪐', rotation: 0, rotationSpeed: 0.1, moveSpeed: 0.5, targetChangeTimer: 0 },
-    { initialX: 700, initialY: 250, x: 700, y: 250, reached: false, emoji: '🌍', rotation: 0, rotationSpeed: 0.5, moveSpeed: 0.7, targetChangeTimer: 0 },
-    { initialX: 500, initialY: 400, x: 700, y: 400, reached: false, emoji: '🌑', rotation: 0, rotationSpeed: 1, moveSpeed: 0.9, targetChangeTimer: 0 },
-    { initialX: 100, initialY: 550, x: 700, y: 550, reached: false, emoji: '☄️', rotation: 0, rotationSpeed: 1.5, moveSpeed: 1.1, targetChangeTimer: 0 }
+    { initialX: 200, initialY: 100, x: 700, y: 100, reached: false, emoji: '🪐', rotation: 0, rotationSpeed: 0.1, moveSpeed: isMobile ? 0.4 : 0.5, targetChangeTimer: 0 },
+    { initialX: 700, initialY: 250, x: 700, y: 250, reached: false, emoji: '🌍', rotation: 0, rotationSpeed: 0.5, moveSpeed: isMobile ? 0.6 : 0.7, targetChangeTimer: 0 },
+    { initialX: 500, initialY: 400, x: 700, y: 400, reached: false, emoji: '🌑', rotation: 0, rotationSpeed: 1, moveSpeed: isMobile ? 0.8 : 0.9, targetChangeTimer: 0 },
+    { initialX: 100, initialY: 550, x: 700, y: 550, reached: false, emoji: '☄️', rotation: 0, rotationSpeed: 1.5, moveSpeed: isMobile ? 1.0 : 1.1, targetChangeTimer: 0 }
 ];
 
 // Rocks array and emoji
@@ -45,6 +84,64 @@ let rockInterval;
 let flashTimer = 0;
 let flashColor = '';
 
+// Handle keyboard input
+let keys = {};
+document.addEventListener('keydown', (e) => keys[e.key] = true);
+document.addEventListener('keyup', (e) => keys[e.key] = false);
+
+// Mobile touch controls
+const mobileControls = document.getElementById('mobile-controls');
+
+if (isMobile) {
+    mobileControls.style.display = 'block';
+    
+    // Touch event handlers for mobile controls
+    const touchControls = {
+        up: false,
+        down: false,
+        left: false,
+        right: false
+    };
+
+    function handleTouchStart(e) {
+        e.preventDefault();
+        const button = e.target;
+        if (button.id === 'up-btn') touchControls.up = true;
+        if (button.id === 'down-btn') touchControls.down = true;
+        if (button.id === 'left-btn') touchControls.left = true;
+        if (button.id === 'right-btn') touchControls.right = true;
+        
+        // Add visual feedback
+        button.style.background = 'rgba(255, 255, 255, 0.4)';
+    }
+
+    function handleTouchEnd(e) {
+        e.preventDefault();
+        const button = e.target;
+        if (button.id === 'up-btn') touchControls.up = false;
+        if (button.id === 'down-btn') touchControls.down = false;
+        if (button.id === 'left-btn') touchControls.left = false;
+        if (button.id === 'right-btn') touchControls.right = false;
+        
+        // Remove visual feedback
+        button.style.background = 'rgba(255, 255, 255, 0.2)';
+    }
+
+    // Add touch event listeners to control buttons
+    document.querySelectorAll('.control-btn').forEach(button => {
+        button.addEventListener('touchstart', handleTouchStart, { passive: false });
+        button.addEventListener('touchend', handleTouchEnd, { passive: false });
+        button.addEventListener('touchcancel', handleTouchEnd, { passive: false });
+    });
+
+    // Prevent default touch behaviors
+    document.addEventListener('touchmove', (e) => {
+        if (e.target.closest('#mobile-controls')) {
+            e.preventDefault();
+        }
+    }, { passive: false });
+}
+
 // Set a random target for the planet
 function setRandomTarget(planet) {
     const margin = 50;
@@ -55,7 +152,7 @@ function setRandomTarget(planet) {
 
 // Start a new level
 function startLevel() {
-    player.x = 50;
+    player.x = canvas.width * 0.1; // 10% from left
     player.y = canvas.height / 2;
     gameState.path = [];
     gameState.time = 0;
@@ -76,11 +173,11 @@ function startLevel() {
 // Spawn a new rock
 function spawnRock() {
     if (!gameState.gameOver) {
-        const scale = 1 + Math.random();
+        const scale = isMobile ? 0.8 + Math.random() * 0.4 : 1 + Math.random(); // Smaller rocks on mobile
         rocks.push({
             x: canvas.width,
             y: Math.random() * canvas.height,
-            speed: 1 + Math.random() * 7,
+            speed: isMobile ? 0.8 + Math.random() * 5 : 1 + Math.random() * 7, // Slightly slower on mobile
             rotation: Math.random() * 360,
             rotationSpeed: (Math.random() - 0.5) * 7,
             scale: scale,
@@ -89,24 +186,33 @@ function spawnRock() {
     }
 }
 
-// Handle keyboard input
-let keys = {};
-document.addEventListener('keydown', (e) => keys[e.key] = true);
-document.addEventListener('keyup', (e) => keys[e.key] = false);
-
 // Update game state
 function update() {
     if (!gameState.gameOver) {
         // Player movement
         let moved = false;
-        if (keys['ArrowUp']) { player.y -= player.speed; moved = true; }
-        if (keys['ArrowDown']) { player.y += player.speed; moved = true; }
-        if (keys['ArrowLeft']) { player.x -= player.speed; moved = true; }
-        if (keys['ArrowRight']) { player.x += player.speed; moved = true; }
+        
+        // Handle both keyboard and touch controls
+        if (keys['ArrowUp'] || (isMobile && touchControls.up)) { 
+            player.y -= player.speed; 
+            moved = true; 
+        }
+        if (keys['ArrowDown'] || (isMobile && touchControls.down)) { 
+            player.y += player.speed; 
+            moved = true; 
+        }
+        if (keys['ArrowLeft'] || (isMobile && touchControls.left)) { 
+            player.x -= player.speed; 
+            moved = true; 
+        }
+        if (keys['ArrowRight'] || (isMobile && touchControls.right)) { 
+            player.x += player.speed; 
+            moved = true; 
+        }
 
         // Clamp player position to canvas
-        player.x = Math.max(0, Math.min(player.x, canvas.width));
-        player.y = Math.max(0, Math.min(player.y, canvas.height));
+        player.x = Math.max(player.radius, Math.min(player.x, canvas.width - player.radius));
+        player.y = Math.max(player.radius, Math.min(player.y, canvas.height - player.radius));
 
         // Update path
         if (moved && (gameState.path.length === 0 ||
@@ -128,7 +234,7 @@ function update() {
         // Check collision with rocks
         rocks.forEach(rock => {
             const distance = Math.hypot(player.x - rock.x, player.y - rock.y);
-            if (distance < player.radius + rock.radius) {
+            if (distance < (player.radius + rock.radius) * (isMobile ? 0.9 : 1)) { // Slightly more forgiving on mobile
                 endGame(false);
             }
         });
@@ -168,14 +274,17 @@ function draw() {
     // Clear canvas with dark background and grid
     ctx.fillStyle = '#111';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Adjust grid size based on canvas size
+    const gridSize = Math.max(30, Math.floor(canvas.width / 20));
     ctx.strokeStyle = '#222';
-    for (let i = 0; i < canvas.width; i += 50) {
+    for (let i = 0; i < canvas.width; i += gridSize) {
         ctx.beginPath();
         ctx.moveTo(i, 0);
         ctx.lineTo(i, canvas.height);
         ctx.stroke();
     }
-    for (let i = 0; i < canvas.height; i += 50) {
+    for (let i = 0; i < canvas.height; i += gridSize) {
         ctx.beginPath();
         ctx.moveTo(0, i);
         ctx.lineTo(canvas.width, i);
@@ -184,12 +293,10 @@ function draw() {
 
     // Draw player's path
     if (gameState.path.length >= 2) {
-        ctx.strokeStyle = 'rgba(148, 223, 17, 0.5)'; // A semi-transparent green trail
-        ctx.lineWidth = 2;                            // Thickness of the trail
-        drawCatmullRomSpline(gameState.path, 0.5);    // Draw the smooth trail
+        ctx.strokeStyle = 'rgba(148, 223, 17, 0.5)';
+        ctx.lineWidth = 2;
+        drawCatmullRomSpline(gameState.path, 0.5);
     }
-        ctx.stroke();
-
 
     // Draw rocks
     rocks.forEach(rock => {
@@ -198,14 +305,20 @@ function draw() {
         ctx.rotate(rock.rotation * Math.PI / 180);
         ctx.scale(rock.scale, rock.scale);
         ctx.font = '30px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
         ctx.fillText(rockEmoji, 0, 0);
         ctx.restore();
     });
 
     // Draw player
+    ctx.save();
     ctx.font = '32px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
     ctx.fillStyle = 'white';
-    ctx.fillText(player.emoji, player.x - 16, player.y + 12);
+    ctx.fillText(player.emoji, player.x, player.y);
+    ctx.restore();
 
     // Draw current planet with rotation
     const currentPlanet = planets[gameState.level - 1];
@@ -322,7 +435,3 @@ function gameLoop() {
     updateUI();
     requestAnimationFrame(gameLoop);
 }
-
-// Initialize the game
-startLevel();
-gameLoop();

@@ -2,48 +2,1820 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Space Pathfinder</title>
     <style>
         body {
-            background-color: #1a1a1a;
+            margin: 0;
+            padding: 20px;
+            background: #1a1a1a;
             color: white;
             font-family: Arial, sans-serif;
             text-align: center;
+            touch-action: none;
+            overscroll-behavior: none;
         }
-
+        #game-container {
+            position: relative;
+            max-width: 100%;
+            margin: 0 auto;
+            touch-action: none;
+        }
         canvas {
             border: 1px solid white;
+            max-width: 100%;
+            height: auto;
+            touch-action: none;
         }
-
-        #end-screen {
+        #mobile-controls {
             display: none;
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100%;
+            max-width: 300px;
+            z-index: 100;
+        }
+        .control-btn {
+            width: 70px;
+            height: 70px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid white;
+            border-radius: 50%;
+            color: white;
+            font-size: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             position: absolute;
+            touch-action: none;
+        }
+        #up-btn { top: 0; left: 50%; transform: translateX(-50%); }
+        #down-btn { bottom: 0; left: 50%; transform: translateX(-50%); }
+        #left-btn { left: 0; top: 50%; transform: translateY(-50%); }
+        #right-btn { right: 0; top: 50%; transform: translateY(-50%); }
+
+        #end-screen, #level-complete {
+            display: none;
+            position: fixed;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.8);
-            padding: 20px;
-            border-radius: 10px;
+            background: rgba(0, 0, 0, 0.95);
+            padding: 15px;
+            border-radius: 12px;
+            width: 70%;
+            max-width: 250px;
+            z-index: 1000;
+            text-align: center;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            animation: screenAppear 0.5s ease-out;
+        }
+
+        @keyframes screenAppear {
+            from {
+                opacity: 0;
+                transform: translate(-50%, -60%);
+            }
+            to {
+                opacity: 1;
+                transform: translate(-50%, -50%);
+            }
+        }
+
+        #end-screen h2, #level-complete h2 {
+            color: #4CAF50;
+            margin-top: 0;
+            font-size: 1.5em;
+            text-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+            animation: titlePulse 2s infinite;
+        }
+
+        @keyframes titlePulse {
+            0% { text-shadow: 0 0 10px rgba(76, 175, 80, 0.5); }
+            50% { text-shadow: 0 0 20px rgba(76, 175, 80, 0.8); }
+            100% { text-shadow: 0 0 10px rgba(76, 175, 80, 0.5); }
+        }
+
+        #map {
+            margin: 15px 0;
+            background: rgba(17, 17, 17, 0.8);
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid rgba(0, 255, 255, 0.2);
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.1);
         }
 
         button {
-            padding: 10px 20px;
-            font-size: 16px;
+            padding: 6px 16px;
+            font-size: 14px;
             cursor: pointer;
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            border: none;
+            color: white;
+            border-radius: 15px;
+            margin: 8px 0;
+            touch-action: manipulation;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 8px rgba(76, 175, 80, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
+            background: linear-gradient(45deg, #45a049, #4CAF50);
+        }
+
+        button:active {
+            transform: translateY(1px);
+            box-shadow: 0 2px 10px rgba(76, 175, 80, 0.3);
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin: 12px 0;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            border: 1px solid rgba(0, 255, 255, 0.1);
+        }
+
+        .stat {
+            text-align: center;
+            padding: 6px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 6px;
+            transition: transform 0.3s ease;
+        }
+
+        .stat:hover {
+            transform: translateY(-2px);
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        .stat-value {
+            font-size: 18px;
+            color: #4CAF50;
+            margin: 2px 0;
+            text-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+            font-weight: bold;
+        }
+
+        .connection-message {
+            font-size: 1em;
+            color: #4CAF50;
+            margin: 8px 0;
+            padding: 8px;
+            background: rgba(76, 175, 80, 0.1);
+            border-radius: 6px;
+            animation: glow 2s infinite;
+            border: 1px solid rgba(76, 175, 80, 0.2);
+            text-shadow: 0 0 10px rgba(76, 175, 80, 0.3);
+        }
+
+        @keyframes glow {
+            0% { box-shadow: 0 0 10px rgba(76, 175, 80, 0.3); }
+            50% { box-shadow: 0 0 25px rgba(76, 175, 80, 0.6); }
+            100% { box-shadow: 0 0 10px rgba(76, 175, 80, 0.3); }
+        }
+
+        @media (max-width: 768px) {
+            #end-screen, #level-complete {
+                width: 75%;
+                padding: 12px;
+            }
+
+            .stat-value {
+                font-size: 16px;
+            }
+
+            button {
+                padding: 6px 14px;
+                font-size: 13px;
+            }
+
+            .connection-message {
+                font-size: 0.9em;
+                padding: 6px;
+            }
+        }
+
+        .path-visualization {
+            margin: 12px 0;
+            background: rgba(17, 17, 17, 0.8);
+            border-radius: 6px;
+            overflow: hidden;
+            border: 1px solid rgba(0, 255, 255, 0.2);
+            box-shadow: 0 0 8px rgba(0, 255, 255, 0.1);
+            height: 80px;
+            position: relative;
+        }
+
+        .path-visualization canvas {
+            width: 100%;
+            height: 100%;
+            border: none;
         }
     </style>
 </head>
 <body>
     <h1>Space Pathfinder</h1>
     <p>Score: <span id="score">0</span> | Time: <span id="timer">0</span>s</p>
-    <canvas id="gameCanvas"></canvas>
-    <div id="end-screen">
-        <h2 id="result"></h2>
-        <p>Final Score: <span id="final-score"></span></p>
-        <p>Time Spent: <span id="final-time"></span>s</p>
-        <div id="map"></div>
-        <button id="restart">Restart</button>
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
     </div>
-    <script src="game.js"></script>
+    <div id="mobile-controls">
+        <button class="control-btn" id="up-btn">↑</button>
+        <button class="control-btn" id="down-btn">↓</button>
+        <button class="control-btn" id="left-btn">←</button>
+        <button class="control-btn" id="right-btn">→</button>
+    </div>
+
+    <div id="end-screen">
+        <h2 id="result">Game Over!</h2>
+        <div class="stats">
+            <div class="stat">
+                <div>Score</div>
+                <div class="stat-value" id="final-score">0</div>
+            </div>
+            <div class="stat">
+                <div>Time</div>
+                <div class="stat-value" id="final-time">0</div>
+            </div>
+            <div class="stat">
+                <div>Level</div>
+                <div class="stat-value" id="final-level">1</div>
+            </div>
+        </div>
+        <button id="restart">Play Again</button>
+    </div>
+
+    <div id="level-complete">
+        <h2>Level Complete!</h2>
+        <div class="connection-message" id="connection-message"></div>
+        <div class="stats">
+            <div class="stat">
+                <div>Score</div>
+                <div class="stat-value" id="level-score">0</div>
+            </div>
+            <div class="stat">
+                <div>Time</div>
+                <div class="stat-value" id="level-time">0</div>
+            </div>
+            <div class="stat">
+                <div>Next Level</div>
+                <div class="stat-value" id="next-level">2</div>
+            </div>
+            <div class="stat">
+                <div>Rocks Destroyed</div>
+                <div class="stat-value" id="level-rocks-destroyed">0</div>
+            </div>
+        </div>
+        <div class="path-visualization">
+            <canvas id="level-path-canvas"></canvas>
+        </div>
+        <button id="next-level-btn">Continue</button>
+    </div>
+
+    <script>
+        // Initialize canvas
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Mobile detection
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
+        // Game state
+        const gameState = {
+            level: 1,
+            score: 0,
+            time: 0,
+            path: [],
+            storedPath: [], // Add stored path for visualization
+            planetsReached: 0,
+            gameOver: false,
+            levelComplete: false,
+            currentPlanet: null,
+            timer: null,
+            flashTimer: null,
+            difficultyMultiplier: 1,
+            rocksDestroyed: 0,
+            // Shooting properties
+            shooting: {
+                cooldown: 300, // milliseconds between shots
+                lastShot: 0,
+                projectiles: []
+            },
+            // Path effect properties
+            pathEffect: {
+                maxPoints: 50, // Maximum number of points to keep
+                pulseSpeed: 0.05,
+                pulsePhase: 0,
+                colorPhase: 0,
+                colorSpeed: 0.02
+            },
+            // Person effect properties
+            personEffect: {
+                active: false,
+                scale: 0,
+                rotation: 0,
+                bounceHeight: 0,
+                bounceSpeed: 0.1,
+                bouncePhase: 0
+            },
+            // Level complete effect properties
+            levelCompleteEffect: {
+                active: false,
+                duration: 2000, // 2 seconds
+                startTime: 0,
+                connectionLines: 12,
+                orbitSpeed: 0.1,
+                orbitPhase: 0,
+                lineLength: 15,
+                lineWidth: 2,
+                glowIntensity: 0,
+                soundPlayed: false
+            },
+            // Collision effect properties
+            collisionEffect: {
+                active: false,
+                duration: 500, // 0.5 seconds
+                startTime: 0,
+                orbitLines: 8,
+                orbitSpeed: 0.3,
+                orbitPhase: 0,
+                lineLength: 20,
+                lineWidth: 3,
+                glowIntensity: 0,
+                orbitRadius: 30
+            },
+            // Movement sound properties
+            movementSound: {
+                lastPlayed: 0,
+                interval: 100, // Minimum time between sounds in ms
+                isMoving: false
+            },
+            // Planet movement sound properties
+            planetSound: {
+                lastPlayed: 0,
+                interval: 300, // Increased interval for more space between sounds
+                lastX: 0,
+                lastY: 0,
+                minDistance: 8 // Increased minimum distance for movement
+            },
+            // Rock destruction effect properties
+            rockDestructionEffect: {
+                active: false,
+                startTime: 0,
+                duration: 1500, // 1.5 seconds
+                clusterPoint: { x: 0, y: 0 },
+                rocks: [],
+                explosionParticles: []
+            }
+        };
+        
+        // Player setup
+        const player = {
+            x: 50,
+            y: 50,
+            speed: isMobile ? 3 : 5,
+            emoji: '🛸',
+            radius: isMobile ? 15 : 20,
+            dx: 0,
+            dy: 0,
+            lastX: 50,
+            lastY: 50
+        };
+        
+        // Available planets
+        const availablePlanets = [
+            { emoji: '🌍', baseMoveSpeed: isMobile ? 0.4 : 0.5, baseRotationSpeed: 0.02, name: "Quantum Quokka" },
+            { emoji: '🌕', baseMoveSpeed: isMobile ? 0.6 : 0.7, baseRotationSpeed: 0.03, name: "Nebula Noodle" },
+            { emoji: '🌎', baseMoveSpeed: isMobile ? 0.8 : 0.9, baseRotationSpeed: 0.04, name: "Cosmic Cactus" },
+            { emoji: '🌏', baseMoveSpeed: isMobile ? 1.0 : 1.1, baseRotationSpeed: 0.05, name: "Stellar Sushi" },
+            { emoji: '🌑', baseMoveSpeed: isMobile ? 1.2 : 1.3, baseRotationSpeed: 0.06, name: "Galactic Gummy" },
+            { emoji: '🌒', baseMoveSpeed: isMobile ? 1.4 : 1.5, baseRotationSpeed: 0.07, name: "Astral Avocado" },
+            { emoji: '🌓', baseMoveSpeed: isMobile ? 1.6 : 1.7, baseRotationSpeed: 0.08, name: "Meteor Mochi" },
+            { emoji: '🌔', baseMoveSpeed: isMobile ? 1.8 : 1.9, baseRotationSpeed: 0.09, name: "Solar Sorbet" }
+        ];
+
+        // Current planet
+        let currentPlanet = null;
+
+        // Create audio context and oscillators for sounds
+        let audioContext;
+        let connectionSound;
+        let movementSound;
+        let planetSound;
+
+        function createConnectionSound() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+
+            // Create oscillator
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+
+            // Configure oscillator
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(440, audioContext.currentTime); // A4 note
+            oscillator.frequency.exponentialRampToValueAtTime(880, audioContext.currentTime + 0.5); // A5 note
+
+            // Configure gain
+            gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.1);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+
+            // Connect nodes
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+
+            // Start and stop oscillator
+            oscillator.start();
+            oscillator.stop(audioContext.currentTime + 0.5);
+
+            return { oscillator, gainNode };
+        }
+
+        function createMovementSound() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+
+            // Create oscillators for a cute, pleasant sound
+            const mainOsc = audioContext.createOscillator();
+            const subOsc = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            const filter = audioContext.createBiquadFilter();
+
+            // Configure main oscillator - cute higher frequency
+            mainOsc.type = 'sine';
+            mainOsc.frequency.setValueAtTime(440, audioContext.currentTime); // A4 note (higher, more pleasant)
+
+            // Configure sub oscillator for warmth
+            subOsc.type = 'sine';
+            subOsc.frequency.setValueAtTime(220, audioContext.currentTime); // A3 note (warm undertone)
+
+            // Configure filter for soft, pleasant tone
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(800, audioContext.currentTime); // Softer cutoff
+            filter.Q.setValueAtTime(0.3, audioContext.currentTime); // Very gentle resonance
+
+            // Add gentle vibrato for cuteness
+            const vibratoOsc = audioContext.createOscillator();
+            const vibratoGain = audioContext.createGain();
+            vibratoOsc.type = 'sine';
+            vibratoOsc.frequency.setValueAtTime(6, audioContext.currentTime); // Gentle vibrato rate
+            vibratoGain.gain.setValueAtTime(2, audioContext.currentTime); // Subtle vibrato depth
+
+            // Configure gain with soft envelope
+            gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0.15, audioContext.currentTime + 0.05); // Quick, soft attack
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2); // Quick decay
+
+            // Connect nodes
+            vibratoOsc.connect(vibratoGain);
+            vibratoGain.connect(mainOsc.frequency);
+            vibratoGain.connect(subOsc.frequency);
+            
+            mainOsc.connect(filter);
+            subOsc.connect(filter);
+            filter.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+
+            // Start and stop oscillators
+            vibratoOsc.start();
+            mainOsc.start();
+            subOsc.start();
+            
+            vibratoOsc.stop(audioContext.currentTime + 0.2);
+            mainOsc.stop(audioContext.currentTime + 0.2);
+            subOsc.stop(audioContext.currentTime + 0.2);
+
+            return { mainOsc, subOsc, vibratoOsc, gainNode, filter };
+        }
+
+        function createPlanetSound() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+
+            // Create oscillators for a distinctive planet sound
+            const mainOsc = audioContext.createOscillator();
+            const subOsc = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            const filter = audioContext.createBiquadFilter();
+
+            // Configure main oscillator - distinctive frequency
+            mainOsc.type = 'sine';
+            mainOsc.frequency.setValueAtTime(196, audioContext.currentTime); // G3 note (pleasant, recognizable)
+
+            // Configure sub oscillator for character
+            subOsc.type = 'sine';
+            subOsc.frequency.setValueAtTime(98, audioContext.currentTime); // G2 note (warm undertone)
+
+            // Configure filter for distinctive tone
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(400, audioContext.currentTime);
+            filter.Q.setValueAtTime(0.6, audioContext.currentTime);
+
+            // Add gentle modulation for character
+            const modOsc = audioContext.createOscillator();
+            const modGain = audioContext.createGain();
+            modOsc.type = 'sine';
+            modOsc.frequency.setValueAtTime(0.8, audioContext.currentTime); // Slow modulation
+            modGain.gain.setValueAtTime(1, audioContext.currentTime); // Moderate modulation
+
+            // Configure gain with gentle envelope
+            gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0.08, audioContext.currentTime + 0.2);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 1.0);
+
+            // Connect nodes
+            modOsc.connect(modGain);
+            modGain.connect(mainOsc.frequency);
+            modGain.connect(subOsc.frequency);
+            
+            mainOsc.connect(filter);
+            subOsc.connect(filter);
+            filter.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+
+            // Start and stop oscillators
+            modOsc.start();
+            mainOsc.start();
+            subOsc.start();
+            
+            modOsc.stop(audioContext.currentTime + 1.0);
+            mainOsc.stop(audioContext.currentTime + 1.0);
+            subOsc.stop(audioContext.currentTime + 1.0);
+
+            return { mainOsc, subOsc, modOsc, gainNode, filter };
+        }
+
+        function createCollisionSound() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+
+            // Create oscillators for impact sound
+            const mainOsc = audioContext.createOscillator();
+            const noiseOsc = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            const filter = audioContext.createBiquadFilter();
+
+            // Configure main oscillator - impact tone
+            mainOsc.type = 'sine';
+            mainOsc.frequency.setValueAtTime(220, audioContext.currentTime); // A3
+            mainOsc.frequency.exponentialRampToValueAtTime(110, audioContext.currentTime + 0.1); // A2
+
+            // Configure noise oscillator for impact texture
+            noiseOsc.type = 'sawtooth';
+            noiseOsc.frequency.setValueAtTime(100, audioContext.currentTime);
+            noiseOsc.frequency.exponentialRampToValueAtTime(50, audioContext.currentTime + 0.1);
+
+            // Configure filter for impact sound
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(1000, audioContext.currentTime);
+            filter.frequency.exponentialRampToValueAtTime(200, audioContext.currentTime + 0.1);
+            filter.Q.setValueAtTime(1, audioContext.currentTime);
+
+            // Configure gain with quick impact envelope
+            gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.01);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+
+            // Connect nodes
+            mainOsc.connect(filter);
+            noiseOsc.connect(filter);
+            filter.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+
+            // Start and stop oscillators
+            mainOsc.start();
+            noiseOsc.start();
+            
+            mainOsc.stop(audioContext.currentTime + 0.2);
+            noiseOsc.stop(audioContext.currentTime + 0.2);
+
+            return { mainOsc, noiseOsc, gainNode, filter };
+        }
+
+        function createLevelCompleteSound() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+
+            // Create oscillators for a bass guitar-like sound
+            const osc1 = audioContext.createOscillator();
+            const osc2 = audioContext.createOscillator();
+            const osc3 = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            const filter = audioContext.createBiquadFilter();
+
+            // Configure oscillators for a major chord with lower frequencies
+            osc1.type = 'sawtooth';
+            osc1.frequency.setValueAtTime(220, audioContext.currentTime); // A3 (lower)
+            osc1.frequency.exponentialRampToValueAtTime(440, audioContext.currentTime + 0.5); // A4 (lower)
+
+            osc2.type = 'sawtooth';
+            osc2.frequency.setValueAtTime(277, audioContext.currentTime); // C#4 (lower)
+            osc2.frequency.exponentialRampToValueAtTime(554, audioContext.currentTime + 0.5); // C#5 (lower)
+
+            osc3.type = 'sawtooth';
+            osc3.frequency.setValueAtTime(330, audioContext.currentTime); // E4 (lower)
+            osc3.frequency.exponentialRampToValueAtTime(659, audioContext.currentTime + 0.5); // E5 (lower)
+
+            // Configure filter for bass tone
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(1000, audioContext.currentTime); // Lower cutoff
+            filter.frequency.exponentialRampToValueAtTime(2000, audioContext.currentTime + 0.5); // Lower sweep
+            filter.Q.setValueAtTime(1, audioContext.currentTime);
+
+            // Configure gain with bass-friendly envelope
+            gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.1);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 1.5); // Longer decay for bass
+
+            // Connect nodes
+            osc1.connect(filter);
+            osc2.connect(filter);
+            osc3.connect(filter);
+            filter.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+
+            // Start and stop oscillators
+            osc1.start();
+            osc2.start();
+            osc3.start();
+            
+            osc1.stop(audioContext.currentTime + 1.5);
+            osc2.stop(audioContext.currentTime + 1.5);
+            osc3.stop(audioContext.currentTime + 1.5);
+
+            return { osc1, osc2, osc3, gainNode, filter };
+        }
+
+        function createShootingSound() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            const filter = audioContext.createBiquadFilter();
+
+            // Configure oscillator
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(880, audioContext.currentTime); // A5
+            oscillator.frequency.exponentialRampToValueAtTime(440, audioContext.currentTime + 0.1); // A4
+
+            // Configure filter
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(2000, audioContext.currentTime);
+            filter.Q.setValueAtTime(1, audioContext.currentTime);
+
+            // Configure gain
+            gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0.2, audioContext.currentTime + 0.01);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+
+            // Connect nodes
+            oscillator.connect(filter);
+            filter.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+
+            // Start and stop oscillator
+            oscillator.start();
+            oscillator.stop(audioContext.currentTime + 0.1);
+
+            return { oscillator, gainNode, filter };
+        }
+
+        function createPlanet(level) {
+            const planetIndex = (level - 1) % availablePlanets.length;
+            const planetData = availablePlanets[planetIndex];
+            return {
+                ...planetData,
+                x: canvas.width / 2,
+                y: canvas.height / 2,
+                radius: isMobile ? 25 : 30,
+                reached: false,
+                angle: Math.random() * Math.PI * 2,
+                moveSpeed: planetData.baseMoveSpeed * gameState.difficultyMultiplier * 2,
+                rotationSpeed: planetData.baseRotationSpeed * gameState.difficultyMultiplier * 2,
+                // Quantum movement properties
+                quantumState: 0, // 0: normal, 1: teleporting, 2: splitting
+                teleportTimer: 0,
+                teleportInterval: 800 + Math.random() * 1200,
+                splitTimer: 0,
+                splitInterval: 1500 + Math.random() * 2000,
+                splitDuration: 500,
+                splitOffset: 0,
+                quantumSpeed: 8 * gameState.difficultyMultiplier,
+                lastX: canvas.width / 2,
+                lastY: canvas.height / 2,
+                targetX: canvas.width / 2,
+                targetY: canvas.height / 2,
+                trailPoints: [],
+                maxTrailPoints: 5,
+                // Vibration properties
+                vibrationOffset: 0,
+                vibrationSpeed: 0.2,
+                vibrationAmplitude: 3,
+                // Orbiting lines properties
+                orbitLines: 8,
+                orbitRadius: 40,
+                orbitSpeed: 0.1,
+                orbitPhase: 0,
+                orbitLength: 20,
+                orbitWidth: 2
+            };
+        }
+
+        // Rocks setup
+        const rocks = [];
+        const rockEmojis = ['🪨'];
+        
+        function spawnRock() {
+            const side = Math.floor(Math.random() * 4); // 0: top, 1: right, 2: bottom, 3: left
+            let x, y;
+            const baseSpeed = isMobile ? 1.5 : 2;
+            const speed = baseSpeed * gameState.difficultyMultiplier;
+            
+            // Random size between 0.5x and 2x the base size
+            const sizeMultiplier = 0.5 + Math.random() * 1.5;
+            const baseRadius = isMobile ? 15 : 20;
+            const radius = baseRadius * sizeMultiplier;
+            
+            // Adjust speed based on size (larger rocks move slower)
+            const adjustedSpeed = speed * (1 / Math.sqrt(sizeMultiplier));
+            
+            switch(side) {
+                case 0: // top
+                    x = Math.random() * canvas.width;
+                    y = -radius;
+                    break;
+                case 1: // right
+                    x = canvas.width + radius;
+                    y = Math.random() * canvas.height;
+                    break;
+                case 2: // bottom
+                    x = Math.random() * canvas.width;
+                    y = canvas.height + radius;
+                    break;
+                case 3: // left
+                    x = -radius;
+                    y = Math.random() * canvas.height;
+                    break;
+            }
+            
+            // Random angle between -45 and 45 degrees from center
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const baseAngle = Math.atan2(centerY - y, centerX - x);
+            const angleVariation = (Math.random() - 0.5) * Math.PI / 2; // ±45 degrees
+            const angle = baseAngle + angleVariation;
+            
+            const dx = Math.cos(angle) * adjustedSpeed;
+            const dy = Math.sin(angle) * adjustedSpeed;
+            
+            rocks.push({
+                x,
+                y,
+                dx,
+                dy,
+                emoji: rockEmojis[0],
+                radius: radius,
+                rotation: 0,
+                rotationSpeed: (Math.random() - 0.5) * 0.05 * gameState.difficultyMultiplier * (1 / Math.sqrt(sizeMultiplier)) // Larger rocks rotate slower
+            });
+        }
+        
+        // Resize canvas function
+        function resizeCanvas() {
+            const container = document.getElementById('game-container');
+            const containerWidth = container.clientWidth;
+            const containerHeight = window.innerHeight * 0.6;
+            
+            // Set canvas size maintaining 4:3 aspect ratio
+            canvas.width = Math.min(containerWidth, containerHeight * 4/3);
+            canvas.height = canvas.width * 3/4;
+            
+            // Update player and planet sizes
+            player.radius = isMobile ? canvas.width * 0.02 : canvas.width * 0.025;
+        }
+        
+        // Update function
+        function update() {
+            if (gameState.gameOver) return;
+
+            // Update player position
+            player.lastX = player.x;
+            player.lastY = player.y;
+            player.x += player.dx;
+            player.y += player.dy;
+            
+            // Keep player in bounds
+            player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, player.x));
+            player.y = Math.max(player.radius, Math.min(canvas.height - player.radius, player.y));
+            
+            // Add to path if moved
+            if (player.x !== player.lastX || player.y !== player.lastY) {
+                gameState.path.push({ x: player.x, y: player.y });
+                
+                // Limit path length
+                if (gameState.path.length > gameState.pathEffect.maxPoints) {
+                    gameState.path.shift();
+                }
+                
+                // Play movement sound if enough time has passed
+                const now = Date.now();
+                if (now - gameState.movementSound.lastPlayed >= gameState.movementSound.interval) {
+                    try {
+                        movementSound = createMovementSound();
+                        gameState.movementSound.lastPlayed = now;
+                    } catch (error) {
+                        console.log('Movement sound playback failed:', error);
+                    }
+                }
+            }
+            
+            // Update current planet
+            if (currentPlanet) {
+                const centerX = canvas.width / 2;
+                const centerY = canvas.height / 2;
+                
+                // Update quantum state
+                currentPlanet.teleportTimer += 16;
+                currentPlanet.splitTimer += 16;
+
+                // Update vibration
+                currentPlanet.vibrationOffset += currentPlanet.vibrationSpeed;
+                const vibrationX = Math.sin(currentPlanet.vibrationOffset) * currentPlanet.vibrationAmplitude;
+                const vibrationY = Math.cos(currentPlanet.vibrationOffset * 1.5) * currentPlanet.vibrationAmplitude;
+
+                // Check if planet has moved significantly
+                const dx = currentPlanet.x - gameState.planetSound.lastX;
+                const dy = currentPlanet.y - gameState.planetSound.lastY;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                // Play planet sound if moved enough
+                const now = Date.now();
+                if (distance > 5 && now - gameState.planetSound.lastPlayed >= gameState.planetSound.interval) {
+                    try {
+                        planetSound = createPlanetSound();
+                        gameState.planetSound.lastPlayed = now;
+                    } catch (error) {
+                        console.log('Planet sound playback failed:', error);
+                    }
+                }
+                
+                // Update last position
+                gameState.planetSound.lastX = currentPlanet.x;
+                gameState.planetSound.lastY = currentPlanet.y;
+
+                // Handle quantum state transitions
+                if (currentPlanet.quantumState === 0) { // Normal state
+                    if (currentPlanet.teleportTimer >= currentPlanet.teleportInterval) {
+                        currentPlanet.quantumState = 1; // Switch to teleporting
+                        currentPlanet.teleportTimer = 0;
+                        currentPlanet.lastX = currentPlanet.x;
+                        currentPlanet.lastY = currentPlanet.y;
+                        // Set new random target position with more extreme positions
+                        const padding = currentPlanet.radius * 3;
+                        currentPlanet.targetX = Math.random() * (canvas.width - padding * 2) + padding;
+                        currentPlanet.targetY = Math.random() * (canvas.height - padding * 2) + padding;
+                    } else if (currentPlanet.splitTimer >= currentPlanet.splitInterval) {
+                        currentPlanet.quantumState = 2; // Switch to splitting
+                        currentPlanet.splitTimer = 0;
+                        currentPlanet.splitOffset = 0;
+                    }
+                } else if (currentPlanet.quantumState === 1) { // Teleporting state
+                    // Add current position to trail
+                    currentPlanet.trailPoints.push({ x: currentPlanet.x, y: currentPlanet.y });
+                    if (currentPlanet.trailPoints.length > currentPlanet.maxTrailPoints) {
+                        currentPlanet.trailPoints.shift();
+                    }
+
+                    // Move towards target position with vibration
+                    const dx = currentPlanet.targetX - currentPlanet.x;
+                    const dy = currentPlanet.targetY - currentPlanet.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < 5) {
+                        currentPlanet.quantumState = 0; // Return to normal state
+                        currentPlanet.trailPoints = [];
+                    } else {
+                        currentPlanet.x += (dx / distance) * currentPlanet.quantumSpeed + vibrationX;
+                        currentPlanet.y += (dy / distance) * currentPlanet.quantumSpeed + vibrationY;
+                    }
+                } else if (currentPlanet.quantumState === 2) { // Splitting state
+                    currentPlanet.splitOffset += 0.15; // Increased split animation speed
+                    if (currentPlanet.splitOffset >= Math.PI * 2) {
+                        currentPlanet.quantumState = 0; // Return to normal state
+                        currentPlanet.splitTimer = 0;
+                    }
+                }
+
+                // Keep planet within bounds with vibration
+                const padding = currentPlanet.radius * 2;
+                currentPlanet.x = Math.max(padding, Math.min(canvas.width - padding, currentPlanet.x + vibrationX));
+                currentPlanet.y = Math.max(padding, Math.min(canvas.height - padding, currentPlanet.y + vibrationY));
+
+                // Check if player reached the planet
+                if (!currentPlanet.reached) {
+                    const dx = player.x - currentPlanet.x;
+                    const dy = player.y - currentPlanet.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < player.radius + currentPlanet.radius) {
+                        currentPlanet.reached = true;
+                        gameState.score += 100;
+                        gameState.rocksDestroyed++;
+                        document.getElementById('score').textContent = gameState.score;
+                        
+                        // Flash effect
+                        if (gameState.flashTimer) clearTimeout(gameState.flashTimer);
+                        gameState.flashTimer = setTimeout(() => {
+                            gameState.flashTimer = null;
+                        }, 200);
+                        
+                        // Level complete
+                        gameState.level++;
+                        showLevelComplete();
+                    }
+                }
+            }
+            
+            // Update rocks
+            for (let i = rocks.length - 1; i >= 0; i--) {
+                const rock = rocks[i];
+                rock.x += rock.dx;
+                rock.y += rock.dy;
+                rock.rotation += rock.rotationSpeed;
+                
+                // Check collision with player only if level is not complete
+                if (!gameState.levelComplete) {
+                    const dx = player.x - rock.x;
+                    const dy = player.y - rock.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < player.radius + rock.radius) {
+                        // Create explosion effects for both rock and player
+                        const rockExplosion = createExplosionParticles(rock.x, rock.y, 20);
+                        const playerExplosion = createExplosionParticles(player.x, player.y, 40);
+                        gameState.rockDestructionEffect.explosionParticles.push(...rockExplosion, ...playerExplosion);
+                        
+                        // Remove the rock
+                        rocks.splice(i, 1);
+                        
+                        // Clear player's path and orbit lines
+                        gameState.path = [];
+                        gameState.collisionEffect.active = false;
+                        
+                        // Play collision sound
+                        try {
+                            const collisionSound = createCollisionSound();
+                        } catch (error) {
+                            console.log('Collision sound playback failed:', error);
+                        }
+                        
+                        // End the game
+                        gameOver();
+                        return;
+                    }
+                }
+                
+                // Remove rocks that are off screen
+                if (rock.x < -50 || rock.x > canvas.width + 50 || 
+                    rock.y < -50 || rock.y > canvas.height + 50) {
+                    rocks.splice(i, 1);
+                }
+            }
+            
+            // Spawn new rocks with increased frequency based on level
+            const spawnChance = 0.01 * gameState.difficultyMultiplier;
+            if (Math.random() < spawnChance && !gameState.levelComplete) {
+                spawnRock();
+            }
+
+            // Update projectiles
+            for (let i = gameState.shooting.projectiles.length - 1; i >= 0; i--) {
+                const projectile = gameState.shooting.projectiles[i];
+                projectile.x += projectile.dx;
+                projectile.y += projectile.dy;
+                projectile.alpha -= 0.02; // Fade out
+
+                // Remove projectiles that are off screen or faded out
+                if (projectile.x < -50 || projectile.x > canvas.width + 50 ||
+                    projectile.y < -50 || projectile.y > canvas.height + 50 ||
+                    projectile.alpha <= 0) {
+                    gameState.shooting.projectiles.splice(i, 1);
+                    continue;
+                }
+
+                // Check collision with rocks
+                for (let j = rocks.length - 1; j >= 0; j--) {
+                    const rock = rocks[j];
+                    const dx = projectile.x - rock.x;
+                    const dy = projectile.y - rock.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance < projectile.radius + rock.radius) {
+                        // Remove both projectile and rock
+                        gameState.shooting.projectiles.splice(i, 1);
+                        rocks.splice(j, 1);
+                        gameState.score += 10; // Bonus points for destroying rocks
+                        gameState.rocksDestroyed++;
+                        document.getElementById('score').textContent = gameState.score;
+                        break;
+                    }
+                }
+            }
+        }
+        
+        // Draw function
+        function draw() {
+            // Clear canvas with a dark background
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw path with enhanced effects
+            if (gameState.path.length > 1) {
+                // Update path effect properties
+                gameState.pathEffect.pulsePhase += gameState.pathEffect.pulseSpeed;
+                gameState.pathEffect.colorPhase += gameState.pathEffect.colorSpeed;
+
+                // Keep only the last N points for performance
+                const startIndex = Math.max(0, gameState.path.length - gameState.pathEffect.maxPoints);
+                const pathPoints = gameState.path.slice(startIndex);
+
+                // Draw multiple layers for glow effect
+                for (let layer = 0; layer < 3; layer++) {
+                    ctx.beginPath();
+                    ctx.moveTo(pathPoints[0].x, pathPoints[0].y);
+                    
+                    for (let i = 1; i < pathPoints.length; i++) {
+                        const progress = i / pathPoints.length;
+                        const pulse = Math.sin(gameState.pathEffect.pulsePhase + progress * Math.PI * 2) * 0.2 + 0.8;
+                        const hue = (gameState.pathEffect.colorPhase + progress * 0.5) % 1;
+                        
+                        // Create gradient color
+                        const r = Math.sin(hue * Math.PI * 2) * 127 + 128;
+                        const g = Math.sin((hue + 0.33) * Math.PI * 2) * 127 + 128;
+                        const b = Math.sin((hue + 0.66) * Math.PI * 2) * 127 + 128;
+                        
+                        ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${0.3 - layer * 0.1})`;
+                        ctx.lineWidth = (4 - layer) * pulse;
+                        ctx.lineTo(pathPoints[i].x, pathPoints[i].y);
+                    }
+                    
+                    // Add glow effect
+                    ctx.shadowColor = `rgba(0, 255, 255, ${0.3 - layer * 0.1})`;
+                    ctx.shadowBlur = 10 - layer * 3;
+                    ctx.stroke();
+                }
+
+                // Draw sparkles at the end of the path
+                if (pathPoints.length > 0) {
+                    const lastPoint = pathPoints[pathPoints.length - 1];
+                    const sparkleCount = 5;
+                    
+                    for (let i = 0; i < sparkleCount; i++) {
+                        const angle = (i / sparkleCount) * Math.PI * 2 + gameState.pathEffect.pulsePhase;
+                        const distance = Math.sin(gameState.pathEffect.pulsePhase * 2) * 5 + 10;
+                        
+                        ctx.beginPath();
+                        ctx.arc(
+                            lastPoint.x + Math.cos(angle) * distance,
+                            lastPoint.y + Math.sin(angle) * distance,
+                            2,
+                            0,
+                            Math.PI * 2
+                        );
+                        ctx.fillStyle = `rgba(0, 255, 255, ${0.5 + Math.sin(gameState.pathEffect.pulsePhase + i) * 0.3})`;
+                        ctx.fill();
+                    }
+                }
+            }
+            
+            // Draw rocks
+            rocks.forEach(rock => {
+                ctx.save();
+                ctx.translate(rock.x, rock.y);
+                ctx.rotate(rock.rotation);
+                ctx.font = `${rock.radius * 2}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(rock.emoji, 0, 0);
+                ctx.restore();
+            });
+            
+            // Draw current planet
+            if (currentPlanet) {
+                // Draw trail points
+                if (currentPlanet.quantumState === 1) {
+                    currentPlanet.trailPoints.forEach((point, index) => {
+                        const alpha = index / currentPlanet.trailPoints.length;
+                        ctx.save();
+                        ctx.translate(point.x, point.y);
+                        ctx.rotate(currentPlanet.angle);
+                        ctx.font = `${currentPlanet.radius * 2 * alpha}px Arial`;
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.globalAlpha = alpha;
+                        ctx.fillText(currentPlanet.emoji, 0, 0);
+                        ctx.restore();
+                    });
+                }
+
+                // Draw main planet
+                ctx.save();
+                ctx.translate(currentPlanet.x, currentPlanet.y);
+                ctx.rotate(currentPlanet.angle);
+                ctx.font = `${currentPlanet.radius * 2}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                
+                // Highlight current planet
+                if (!currentPlanet.reached) {
+                    ctx.shadowColor = 'yellow';
+                    ctx.shadowBlur = 20;
+                }
+
+                // Draw orbiting lines
+                if (currentPlanet.quantumState === 2) {
+                    currentPlanet.orbitPhase += currentPlanet.orbitSpeed;
+                    
+                    for (let i = 0; i < currentPlanet.orbitLines; i++) {
+                        const angle = (i * (Math.PI * 2 / currentPlanet.orbitLines)) + currentPlanet.orbitPhase;
+                        const radius = currentPlanet.orbitRadius + Math.sin(currentPlanet.orbitPhase * 2 + i) * 10;
+                        
+                        // Calculate line start and end points
+                        const startX = Math.cos(angle) * (radius - currentPlanet.orbitLength/2);
+                        const startY = Math.sin(angle) * (radius - currentPlanet.orbitLength/2);
+                        const endX = Math.cos(angle) * (radius + currentPlanet.orbitLength/2);
+                        const endY = Math.sin(angle) * (radius + currentPlanet.orbitLength/2);
+                        
+                        // Draw the line
+                        ctx.beginPath();
+                        ctx.moveTo(startX, startY);
+                        ctx.lineTo(endX, endY);
+                        ctx.lineWidth = currentPlanet.orbitWidth;
+                        ctx.strokeStyle = `rgba(255, 255, 255, ${0.3 + Math.sin(currentPlanet.orbitPhase + i) * 0.2})`;
+                        ctx.stroke();
+                        
+                        // Add glow effect
+                        ctx.shadowColor = 'rgba(255, 255, 255, 0.5)';
+                        ctx.shadowBlur = 5;
+                        ctx.stroke();
+                    }
+                }
+                
+                ctx.fillText(currentPlanet.emoji, 0, 0);
+                ctx.restore();
+
+                // Draw the person on the planet
+                if (gameState.personEffect.active) {
+                    // Update person effect
+                    gameState.personEffect.rotation = Math.sin(Date.now() * 0.001) * 0.2; // Gentle rotation
+                    gameState.personEffect.bouncePhase += gameState.personEffect.bounceSpeed;
+                    gameState.personEffect.bounceHeight = Math.sin(gameState.personEffect.bouncePhase) * 5; // Bounce up and down
+                    
+                    // If the person is just appearing, scale it up
+                    if (gameState.personEffect.scale < 1) {
+                        gameState.personEffect.scale = Math.min(1, gameState.personEffect.scale + 0.1);
+                    }
+
+                    ctx.save();
+                    ctx.translate(currentPlanet.x, currentPlanet.y + gameState.personEffect.bounceHeight);
+                    ctx.rotate(currentPlanet.angle + gameState.personEffect.rotation);
+                    ctx.scale(gameState.personEffect.scale, gameState.personEffect.scale);
+                    
+                    // Draw person with glow effect
+                    ctx.shadowColor = 'rgba(255, 255, 255, 0.8)';
+                    ctx.shadowBlur = 15;
+                    ctx.font = `${currentPlanet.radius * 1.5}px Arial`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('👨‍🚀', 0, -currentPlanet.radius * 0.5); // Position above planet
+                    
+                    ctx.restore();
+                }
+            }
+            
+            // Draw player
+            if (!gameState.gameOver) {  // Only draw player if game is not over
+                ctx.font = `${player.radius * 2}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(player.emoji, player.x, player.y);
+            }
+
+            // Draw level complete effect
+            if (gameState.levelCompleteEffect.active) {
+                const effect = gameState.levelCompleteEffect;
+                const elapsed = Date.now() - effect.startTime;
+                const progress = Math.min(elapsed / effect.duration, 1);
+                
+                // Update effect properties
+                effect.orbitPhase += effect.orbitSpeed;
+                effect.glowIntensity = Math.sin(progress * Math.PI) * 0.5 + 0.5;
+
+                // Draw connection lines between player and planet
+                if (currentPlanet) {
+                    const centerX = (player.x + currentPlanet.x) / 2;
+                    const centerY = (player.y + currentPlanet.y) / 2;
+                    const radius = Math.sqrt(
+                        Math.pow(player.x - currentPlanet.x, 2) + 
+                        Math.pow(player.y - currentPlanet.y, 2)
+                    ) / 2;
+
+                    // Draw orbiting lines
+                    for (let i = 0; i < effect.connectionLines; i++) {
+                        const angle = (i * (Math.PI * 2 / effect.connectionLines)) + effect.orbitPhase;
+                        const orbitRadius = radius * (0.8 + Math.sin(effect.orbitPhase * 2 + i) * 0.2);
+                        
+                        // Calculate line start and end points
+                        const startX = centerX + Math.cos(angle) * (orbitRadius - effect.lineLength/2);
+                        const startY = centerY + Math.sin(angle) * (orbitRadius - effect.lineLength/2);
+                        const endX = centerX + Math.cos(angle) * (orbitRadius + effect.lineLength/2);
+                        const endY = centerY + Math.sin(angle) * (orbitRadius + effect.lineLength/2);
+                        
+                        // Draw the line
+                        ctx.beginPath();
+                        ctx.moveTo(startX, startY);
+                        ctx.lineTo(endX, endY);
+                        ctx.lineWidth = effect.lineWidth;
+                        ctx.strokeStyle = `rgba(0, 255, 255, ${0.3 + Math.sin(effect.orbitPhase + i) * 0.2})`;
+                        ctx.stroke();
+                        
+                        // Add glow effect
+                        ctx.shadowColor = `rgba(0, 255, 255, ${effect.glowIntensity})`;
+                        ctx.shadowBlur = 10;
+                        ctx.stroke();
+                    }
+
+                    // Draw connection line between player and planet
+                    ctx.beginPath();
+                    ctx.moveTo(player.x, player.y);
+                    ctx.lineTo(currentPlanet.x, currentPlanet.y);
+                    ctx.lineWidth = 2;
+                    ctx.strokeStyle = `rgba(0, 255, 255, ${effect.glowIntensity})`;
+                    ctx.shadowColor = `rgba(0, 255, 255, ${effect.glowIntensity})`;
+                    ctx.shadowBlur = 15;
+                    ctx.stroke();
+                }
+
+                // End effect after duration
+                if (progress >= 1) {
+                    effect.active = false;
+                }
+            }
+            
+            // Draw collision effect
+            if (gameState.collisionEffect.active) {
+                const effect = gameState.collisionEffect;
+                const elapsed = Date.now() - effect.startTime;
+                const progress = Math.min(elapsed / effect.duration, 1);
+                
+                // Update effect properties
+                effect.orbitPhase += effect.orbitSpeed;
+                effect.glowIntensity = 1 - progress; // Fade out over time
+
+                // Draw orbiting lines
+                for (let i = 0; i < effect.orbitLines; i++) {
+                    const angle = (i * (Math.PI * 2 / effect.orbitLines)) + effect.orbitPhase;
+                    const radius = effect.orbitRadius + Math.sin(effect.orbitPhase * 2 + i) * 5;
+                    
+                    // Calculate line start and end points
+                    const startX = player.x + Math.cos(angle) * (radius - effect.lineLength/2);
+                    const startY = player.y + Math.sin(angle) * (radius - effect.lineLength/2);
+                    const endX = player.x + Math.cos(angle) * (radius + effect.lineLength/2);
+                    const endY = player.y + Math.sin(angle) * (radius + effect.lineLength/2);
+                    
+                    // Draw the line
+                    ctx.beginPath();
+                    ctx.moveTo(startX, startY);
+                    ctx.lineTo(endX, endY);
+                    ctx.lineWidth = effect.lineWidth;
+                    ctx.strokeStyle = `rgba(255, 0, 0, ${effect.glowIntensity})`;
+                    ctx.stroke();
+                    
+                    // Add glow effect
+                    ctx.shadowColor = `rgba(255, 0, 0, ${effect.glowIntensity})`;
+                    ctx.shadowBlur = 10;
+                    ctx.stroke();
+                }
+
+                // End effect after duration
+                if (progress >= 1) {
+                    effect.active = false;
+                }
+            }
+            
+            // Flash effect
+            if (gameState.flashTimer) {
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+
+            // Draw projectiles
+            gameState.shooting.projectiles.forEach(projectile => {
+                ctx.beginPath();
+                ctx.arc(projectile.x, projectile.y, projectile.radius, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(0, 255, 255, ${projectile.alpha})`;
+                ctx.shadowColor = 'rgba(0, 255, 255, 0.5)';
+                ctx.shadowBlur = 10;
+                ctx.fill();
+            });
+
+            // Draw rock destruction effect
+            if (gameState.rockDestructionEffect.active) {
+                const effect = gameState.rockDestructionEffect;
+                const elapsed = Date.now() - effect.startTime;
+                const progress = Math.min(elapsed / effect.duration, 1);
+
+                // Update and draw rocks
+                effect.rocks.forEach((rock, index) => {
+                    // Calculate target position (cluster point)
+                    const targetX = effect.clusterPoint.x;
+                    const targetY = effect.clusterPoint.y;
+
+                    // Move rock towards cluster point
+                    const dx = targetX - rock.x;
+                    const dy = targetY - rock.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    const speed = 5 + (index * 0.5); // Staggered speed based on index
+
+                    if (distance > 5) {
+                        rock.x += (dx / distance) * speed;
+                        rock.y += (dy / distance) * speed;
+                    } else if (!rock.exploded) {
+                        // Create explosion when rock reaches cluster point
+                        rock.exploded = true;
+                        effect.explosionParticles.push(...createExplosionParticles(rock.x, rock.y, 20));
+                        gameState.score += 10;
+                        gameState.rocksDestroyed++;
+                        document.getElementById('score').textContent = gameState.score;
+                    }
+
+                    // Draw rock with fade out
+                    if (!rock.exploded) {
+                        ctx.save();
+                        ctx.translate(rock.x, rock.y);
+                        ctx.rotate(rock.rotation);
+                        ctx.globalAlpha = 1 - progress;
+                        ctx.font = `${rock.radius * 2}px Arial`;
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(rock.emoji, 0, 0);
+                        ctx.restore();
+                    }
+                });
+
+                // Update and draw explosion particles
+                for (let i = effect.explosionParticles.length - 1; i >= 0; i--) {
+                    const particle = effect.explosionParticles[i];
+                    particle.x += particle.dx;
+                    particle.y += particle.dy;
+                    particle.alpha -= 0.02;
+                    particle.radius *= 0.98;
+
+                    if (particle.alpha <= 0) {
+                        effect.explosionParticles.splice(i, 1);
+                        continue;
+                    }
+
+                    ctx.beginPath();
+                    ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = `${particle.color}${Math.floor(particle.alpha * 255).toString(16).padStart(2, '0')}`;
+                    ctx.shadowColor = particle.color;
+                    ctx.shadowBlur = 10;
+                    ctx.fill();
+                }
+
+                // End effect after duration
+                if (progress >= 1) {
+                    effect.active = false;
+                    rocks.length = 0; // Clear all rocks
+                }
+            } else {
+                // Draw normal rocks if destruction effect is not active
+                rocks.forEach(rock => {
+                    ctx.save();
+                    ctx.translate(rock.x, rock.y);
+                    ctx.rotate(rock.rotation);
+                    ctx.font = `${rock.radius * 2}px Arial`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(rock.emoji, 0, 0);
+                    ctx.restore();
+                });
+            }
+        }
+        
+        // Game loop
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // Handle keyboard input
+        const keys = {};
+        window.addEventListener('keydown', (e) => {
+            keys[e.key] = true;
+            if (e.key === ' ' || e.key === 'z') { // Space or Z to shoot
+                shoot();
+            }
+            updatePlayerMovement();
+        });
+        
+        window.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+            updatePlayerMovement();
+        });
+        
+        function updatePlayerMovement() {
+            // Don't allow movement if game is over
+            if (gameState.gameOver) {
+                player.dx = 0;
+                player.dy = 0;
+                return;
+            }
+
+            player.dx = 0;
+            player.dy = 0;
+            
+            const wasMoving = gameState.movementSound.isMoving;
+            gameState.movementSound.isMoving = false;
+            
+            if (keys['ArrowUp'] || keys['w']) {
+                player.dy = -player.speed;
+                gameState.movementSound.isMoving = true;
+            }
+            if (keys['ArrowDown'] || keys['s']) {
+                player.dy = player.speed;
+                gameState.movementSound.isMoving = true;
+            }
+            if (keys['ArrowLeft'] || keys['a']) {
+                player.dx = -player.speed;
+                gameState.movementSound.isMoving = true;
+            }
+            if (keys['ArrowRight'] || keys['d']) {
+                player.dx = player.speed;
+                gameState.movementSound.isMoving = true;
+            }
+
+            // If movement state changed, reset the last played time
+            if (wasMoving !== gameState.movementSound.isMoving) {
+                gameState.movementSound.lastPlayed = 0;
+            }
+        }
+        
+        // Handle mobile controls
+        if (isMobile) {
+            const mobileControls = document.getElementById('mobile-controls');
+            mobileControls.style.display = 'block';
+            
+            const buttons = {
+                'up-btn': { dy: -player.speed },
+                'down-btn': { dy: player.speed },
+                'left-btn': { dx: -player.speed },
+                'right-btn': { dx: player.speed }
+            };
+            
+            Object.entries(buttons).forEach(([id, movement]) => {
+                const button = document.getElementById(id);
+                button.addEventListener('touchstart', () => {
+                    if (movement.dx) player.dx = movement.dx;
+                    if (movement.dy) player.dy = movement.dy;
+                });
+                button.addEventListener('touchend', () => {
+                    if (movement.dx) player.dx = 0;
+                    if (movement.dy) player.dy = 0;
+                });
+            });
+
+            // Add shooting to mobile controls
+            const shootButton = document.createElement('button');
+            shootButton.className = 'control-btn';
+            shootButton.id = 'shoot-btn';
+            shootButton.textContent = '⚡';
+            shootButton.style.right = '50%';
+            shootButton.style.bottom = '50%';
+            shootButton.style.transform = 'translate(50%, 50%)';
+            document.getElementById('mobile-controls').appendChild(shootButton);
+
+            shootButton.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                shoot();
+            });
+        }
+        
+        function startLevel() {
+            // Reset game state
+            gameState.path = [];
+            gameState.storedPath = []; // Clear stored path
+            rocks.length = 0;
+            gameState.gameOver = false;
+            gameState.levelComplete = false;
+            gameState.rocksDestroyed = 0;
+            gameState.personEffect.active = false;
+            
+            // Update difficulty multiplier
+            gameState.difficultyMultiplier = 1 + (gameState.level - 1) * 0.2; // 20% increase per level
+            
+            // Hide screens
+            document.getElementById('end-screen').style.display = 'none';
+            document.getElementById('level-complete').style.display = 'none';
+            
+            // Reset player
+            player.x = 50;
+            player.y = 50;
+            player.dx = 0;
+            player.dy = 0;
+            
+            // Create new planet for this level
+            currentPlanet = createPlanet(gameState.level);
+            
+            // Start timer
+            if (gameState.timer) clearInterval(gameState.timer);
+            gameState.time = 0;
+            document.getElementById('timer').textContent = gameState.time;
+            gameState.timer = setInterval(() => {
+                gameState.time++;
+                document.getElementById('timer').textContent = gameState.time;
+            }, 1000);
+        }
+
+        function showLevelComplete() {
+            gameState.levelComplete = true;
+            
+            // Store the path before clearing it
+            gameState.storedPath = [...gameState.path];
+            
+            // Clear the player's movement path
+            gameState.path = [];
+            gameState.pathEffect.pulsePhase = 0;
+            gameState.pathEffect.colorPhase = 0;
+            
+            const levelComplete = document.getElementById('level-complete');
+            document.getElementById('level-score').textContent = gameState.score;
+            document.getElementById('level-time').textContent = gameState.time;
+            document.getElementById('next-level').textContent = gameState.level + 1;
+            document.getElementById('level-rocks-destroyed').textContent = gameState.rocksDestroyed;
+            
+            // Update connection message with planet name
+            const planetIndex = (gameState.level - 1) % availablePlanets.length;
+            const planetName = availablePlanets[planetIndex].name;
+            const connectionMessage = document.getElementById('connection-message');
+            connectionMessage.textContent = `Connection established with ${planetName}!`;
+            
+            levelComplete.style.display = 'block';
+
+            // Draw path visualization
+            const pathCanvas = document.getElementById('level-path-canvas');
+            const pathCtx = pathCanvas.getContext('2d');
+            pathCanvas.width = pathCanvas.offsetWidth;
+            pathCanvas.height = pathCanvas.offsetHeight;
+            
+            if (gameState.storedPath.length > 1) {
+                // Calculate path bounds
+                let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                gameState.storedPath.forEach(point => {
+                    minX = Math.min(minX, point.x);
+                    minY = Math.min(minY, point.y);
+                    maxX = Math.max(maxX, point.x);
+                    maxY = Math.max(maxY, point.y);
+                });
+                
+                // Add padding
+                const padding = 20;
+                const width = maxX - minX + padding * 2;
+                const height = maxY - minY + padding * 2;
+                
+                // Draw path
+                pathCtx.fillStyle = '#111';
+                pathCtx.fillRect(0, 0, pathCanvas.width, pathCanvas.height);
+                
+                pathCtx.beginPath();
+                const scale = Math.min(
+                    (pathCanvas.width - padding * 2) / width,
+                    (pathCanvas.height - padding * 2) / height
+                );
+                
+                const offsetX = (pathCanvas.width - width * scale) / 2;
+                const offsetY = (pathCanvas.height - height * scale) / 2;
+                
+                pathCtx.moveTo(
+                    (gameState.storedPath[0].x - minX + padding) * scale + offsetX,
+                    (gameState.storedPath[0].y - minY + padding) * scale + offsetY
+                );
+                
+                for (let i = 1; i < gameState.storedPath.length; i++) {
+                    pathCtx.lineTo(
+                        (gameState.storedPath[i].x - minX + padding) * scale + offsetX,
+                        (gameState.storedPath[i].y - minY + padding) * scale + offsetY
+                    );
+                }
+                
+                pathCtx.strokeStyle = 'rgba(0, 255, 255, 0.5)';
+                pathCtx.lineWidth = 2;
+                pathCtx.stroke();
+                
+                // Add glow effect
+                pathCtx.shadowColor = 'rgba(0, 255, 255, 0.3)';
+                pathCtx.shadowBlur = 5;
+                pathCtx.stroke();
+            }
+
+            // Start rock destruction effect
+            gameState.rockDestructionEffect.active = true;
+            gameState.rockDestructionEffect.startTime = Date.now();
+            gameState.rockDestructionEffect.clusterPoint = {
+                x: canvas.width / 2,
+                y: canvas.height * 0.2  // Changed from canvas.height / 2 to canvas.height * 0.2 to move it to top area
+            };
+            gameState.rockDestructionEffect.rocks = [...rocks]; // Copy current rocks
+            gameState.rockDestructionEffect.explosionParticles = [];
+            
+            // Start level complete effect
+            gameState.levelCompleteEffect.active = true;
+            gameState.levelCompleteEffect.startTime = Date.now();
+            gameState.levelCompleteEffect.orbitPhase = 0;
+            gameState.levelCompleteEffect.glowIntensity = 0;
+            gameState.levelCompleteEffect.soundPlayed = false;
+            
+            // Activate person effect
+            gameState.personEffect.active = true;
+            gameState.personEffect.scale = 0;
+            gameState.personEffect.rotation = 0;
+            gameState.personEffect.bouncePhase = 0;
+
+            // Play connection sound
+            try {
+                connectionSound = createConnectionSound();
+                // Play level complete sound after a short delay
+                setTimeout(() => {
+                    try {
+                        const levelCompleteSound = createLevelCompleteSound();
+                    } catch (error) {
+                        console.log('Level complete sound playback failed:', error);
+                    }
+                }, 300);
+            } catch (error) {
+                console.log('Audio playback failed:', error);
+            }
+        }
+
+        function gameOver() {
+            // Don't trigger game over if level is complete
+            if (gameState.levelComplete) return;
+
+            gameState.gameOver = true;
+            if (gameState.timer) clearInterval(gameState.timer);
+            if (gameState.flashTimer) clearTimeout(gameState.flashTimer);
+            
+            // Start collision effect
+            gameState.collisionEffect.active = true;
+            gameState.collisionEffect.startTime = Date.now();
+            gameState.collisionEffect.orbitPhase = 0;
+            gameState.collisionEffect.glowIntensity = 1;
+            
+            // Play collision sound
+            try {
+                const collisionSound = createCollisionSound();
+            } catch (error) {
+                console.log('Collision sound playback failed:', error);
+            }
+            
+            // Show end screen
+            const endScreen = document.getElementById('end-screen');
+            document.getElementById('final-score').textContent = gameState.score;
+            document.getElementById('final-time').textContent = gameState.time;
+            document.getElementById('final-level').textContent = gameState.level;
+            endScreen.style.display = 'block';
+
+            // Clear the path
+            gameState.path = [];
+        }
+        
+        // Add event listeners for buttons
+        document.getElementById('restart').addEventListener('click', () => {
+            gameState.level = 1;
+            gameState.score = 0;
+            gameState.rocksDestroyed = 0;
+            document.getElementById('score').textContent = '0';
+            startLevel();
+        });
+
+        document.getElementById('next-level-btn').addEventListener('click', () => {
+            startLevel();
+        });
+
+        // Add keyboard support for continue button
+        window.addEventListener('keydown', (e) => {
+            if (gameState.levelComplete && (e.key === 'Enter' || e.key === ' ')) {
+                startLevel();
+            }
+            // Add keyboard support for Play Again button
+            if (gameState.gameOver && (e.key === 'Enter' || e.key === ' ')) {
+                gameState.level = 1;
+                gameState.score = 0;
+                gameState.rocksDestroyed = 0;
+                document.getElementById('score').textContent = '0';
+                startLevel();
+            }
+        });
+        
+        // Initialize game
+        window.addEventListener('load', () => {
+            resizeCanvas();
+            startLevel();
+            gameLoop();
+        });
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            resizeCanvas();
+        });
+
+        // Add shooting functionality
+        function shoot() {
+            const now = Date.now();
+            if (now - gameState.shooting.lastShot < gameState.shooting.cooldown) return;
+
+            gameState.shooting.lastShot = now;
+
+            // Create projectile
+            const projectile = {
+                x: player.x,
+                y: player.y,
+                radius: 5,
+                speed: 10,
+                dx: player.dx * 2, // Shoot in movement direction
+                dy: player.dy * 2,
+                color: '#00ffff',
+                alpha: 1
+            };
+
+            // If player is not moving, shoot in the last movement direction
+            if (projectile.dx === 0 && projectile.dy === 0) {
+                if (gameState.path.length > 1) {
+                    const lastPoint = gameState.path[gameState.path.length - 1];
+                    const prevPoint = gameState.path[gameState.path.length - 2];
+                    const angle = Math.atan2(lastPoint.y - prevPoint.y, lastPoint.x - prevPoint.x);
+                    projectile.dx = Math.cos(angle) * projectile.speed;
+                    projectile.dy = Math.sin(angle) * projectile.speed;
+                } else {
+                    // Default direction if no movement history
+                    projectile.dx = projectile.speed;
+                }
+            }
+
+            // Normalize projectile speed
+            const speed = Math.sqrt(projectile.dx * projectile.dx + projectile.dy * projectile.dy);
+            projectile.dx = (projectile.dx / speed) * projectile.speed;
+            projectile.dy = (projectile.dy / speed) * projectile.speed;
+
+            gameState.shooting.projectiles.push(projectile);
+
+            // Play shooting sound
+            try {
+                const shootingSound = createShootingSound();
+            } catch (error) {
+                console.log('Shooting sound playback failed:', error);
+            }
+        }
+
+        // Add explosion particle creation
+        function createExplosionParticles(x, y, count) {
+            const particles = [];
+            for (let i = 0; i < count; i++) {
+                const angle = (Math.random() * Math.PI * 2);
+                const speed = 2 + Math.random() * 3;
+                particles.push({
+                    x: x,
+                    y: y,
+                    dx: Math.cos(angle) * speed,
+                    dy: Math.sin(angle) * speed,
+                    radius: 2 + Math.random() * 3,
+                    alpha: 1,
+                    color: `hsl(${Math.random() * 60 + 30}, 100%, 50%)` // Orange to red colors
+                });
+            }
+            return particles;
+        }
+    </script>
 </body>
 </html>
